@@ -1,10 +1,37 @@
 import { GAME_STATUS, PAIRS_COUNT, GAME_TIME } from './constants.js'
-import { getColorElementList, getColorListElement, getInActiveColorList } from './selectors.js'
-import { getRandomColorPairs } from './utils.js'
+import {
+  getColorBackground,
+  getColorElementList,
+  getColorListElement,
+  getInActiveColorList,
+  getPlayAgainButton,
+} from './selectors.js'
+import {
+  getRandomColorPairs,
+  hidePlayAgainButton,
+  showPlayAgainButton,
+  setTimerText,
+  createTimer,
+} from './utils.js'
 
 // Global variables
 let selections = []
 let gameStatus = GAME_STATUS.PLAYING
+let time = createTimer({
+  seconds: GAME_TIME,
+  onChange: handleTimerChange,
+  onFinish: handleTimerFinish,
+})
+
+function handleTimerChange(seconds) {
+  setTimerText(`0${seconds}s`.slice(-3))
+}
+
+function handleTimerFinish() {
+  setTimerText('GAME OVER !')
+  showPlayAgainButton()
+  gameStatus = GAME_STATUS.FINISHED
+}
 
 // TODOs
 // 1. Generating colors using https://github.com/davidmerfield/randomColor
@@ -12,6 +39,39 @@ let gameStatus = GAME_STATUS.PLAYING
 // 3. Check win logic
 // 4. Add timer
 // 5. Handle replay click
+
+function resetGame() {
+  //reset timer
+  setTimerText('')
+  //hide play again button
+  hidePlayAgainButton()
+  //reset gamestatus
+  gameStatus = GAME_STATUS.PLAYING
+  //reset game board
+  const liList = getColorElementList()
+  if (!liList) return
+
+  for (const liElement of liList) {
+    liElement.classList.remove('active')
+  }
+  initColor()
+
+  //next game
+  startGame()
+
+  //set background color
+  updateColorBackground('goldenrod')
+}
+
+function attachEvenForPlayAgainButton() {
+  const playAgainButton = getPlayAgainButton()
+  if (playAgainButton) playAgainButton.addEventListener('click', () => resetGame())
+}
+
+function updateColorBackground(color) {
+  const backgroundElement = getColorBackground()
+  if (backgroundElement) backgroundElement.style.backgroundColor = color
+}
 
 function handleColorClick(liElement) {
   const shouldBlockClick = [GAME_STATUS.BLOCKING, GAME_STATUS.FINISHED].includes(gameStatus)
@@ -35,8 +95,14 @@ function handleColorClick(liElement) {
     const isWin = getInActiveColorList().length === 0
     if (isWin) {
       //show You win
+      time.clear()
+
+      setTimerText('YOU WIN !')
       //show replay button
+      showPlayAgainButton()
+      gameStatus = GAME_STATUS.FINISHED
     }
+    updateColorBackground(firstColor)
     selections = []
     return
   }
@@ -51,7 +117,7 @@ function handleColorClick(liElement) {
     //reset selectors to next turn
     selections = []
 
-    gameStatus = GAME_STATUS.PLAYING
+    if (gameStatus !== GAME_STATUS.FINISHED) gameStatus = GAME_STATUS.PLAYING
   }, 250)
 }
 
@@ -80,8 +146,16 @@ function initColor() {
   })
 }
 
+function startGame() {
+  time.start()
+}
+
 ;(() => {
   initColor()
 
+  startGame()
+
   attachEventForColorList()
+
+  attachEvenForPlayAgainButton()
 })()
